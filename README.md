@@ -12,4 +12,4 @@ The files already contained in the image:
 
 - index.html
 
-To manipulate files locally it is needed to mount a volume locally with the same files on the container path.
+To manipulate files locally it is needed to mount a volume on the host with same files on the container path.
