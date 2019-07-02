@@ -10,11 +10,11 @@ RUN mkdir -p /run/apache2
 
 ADD index.html $htdir/vid2mp3/index.html
 ADD httpd.conf /etc/apache2/httpd.conf 
+ADD vid2mp3.sh /usr/local/bin/vid2mp3
 
-EXPOSE 80 443
+EXPOSE 80 443 8080
 
 WORKDIR $htdir/vid2mp3
 
-ENTRYPOINT ["httpd"]
-CMD ["-D", "FOREGROUND"]
+ENTRYPOINT ["vid2mp3"]
 
