@@ -1,22 +1,15 @@
-FROM alpine:3.7
+FROM node:10-alpine
 
-RUN apk update
-RUN apk add apache2
-RUN apk add nodejs
-RUN rm -rf /var/cache/apk/*
+# Create app directory
+WORKDIR /usr/src/vid2mp3
 
-ARG htdir=/var/www/localhost/htdocs
-RUN mkdir -p $htdir/vid2mp3
-RUN mkdir -p /run/apache2
+COPY package*.json ./
 
-ADD index.html $htdir/vid2mp3/index.html
-ADD httpd.conf /etc/apache2/httpd.conf 
+RUN npm install
 
-EXPOSE 80 443 8080
+# Bundle app source
+COPY . .
 
-WORKDIR $htdir/vid2mp3
+EXPOSE 7831
 
-CMD ["httpd", "-D", "FOREGROUND"]
-CMD cd $htdir/vid2mp3
-CMD node app.js
-
+CMD [ "node", "server.js" ]
