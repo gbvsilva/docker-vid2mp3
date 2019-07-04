@@ -1,7 +1,7 @@
 # docker-vid2mp3
 Vid2MP3 web server image
 
-Install Docker from https://docs.docker.com/install
+Install Docker from https://docs.docker.com/install.
 
 E.g. execute:
 
@@ -12,3 +12,4 @@ The files already contained in the image:
 
 - index.html
 - server.js
+
