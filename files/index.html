@@ -19,41 +19,27 @@
         var link = $('.yt_video_link').val();
         var data = {url: link};
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/send', true);
+        xhr.open('POST', '/', true);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.send(JSON.stringify(data));
+
         xhr.onload = function(e) {
             if (xhr.readyState === 4) {
                 if (xhr.status === 200) {
-                    console.log(xhr.responseText);
-                    /*
-                    var urls = xhr.responseText.split("url\\");
-                    var index1 = xhr.responseText.indexOf("<title>");
-                    var index2 = xhr.responseText.indexOf(" - YouTube</title>");
-                    //console.log(index1, index2);
-                    var video_title = xhr.responseText.substring(index1+7, index2);
-                    //console.log(video_title+"AAA");
+                    
+                    //document.write(xhr.responseText);
+                    var video_title = xhr.responseText;
+                    video_title = decodeURIComponent(video_title);
+                    console.log('Video Title -> '+video_title);
 
-
-                    //urls[2] -> 18, urls[16] -> 140
-                    index1 = urls[2].indexOf('https');
-                    index2 = urls[2].indexOf('mimeType');
-                    var str = urls[2].substring(index1, index2-5);
-                    //console.log(str);
-                    str = decodeURIComponent(str);
-                    str = str.replace(/\\u0026/g, "&");
-                    var video_link = str.replace(/\\/g, "");
-
-
-                    //console.log(video_file);
                     var c = ''
                     +'<br>'
-                    +'<span class="btn btn-primary btn-start"> Start</span>';
+                    +'<span class="btn btn-primary btn-start">Start</span>';
 
                     var d = ''
                     +'<br>'
 
-                    +'<video src="'+video_link+'" controls autoplay controlsList="nodownload" oncontextmenu="return false;" height="350" width="100%">'
+                    +'<video src="videos/'+encodeURIComponent(video_title)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
                     +'</video>';
 
                     $('.btns').html(c);
@@ -75,12 +61,11 @@
                     
 
                     $(document).on('click', '.btn-download', function(event) {
-                        location.replace('download.php?video_title='+encodeURIComponent(video_title));
-                        $('button').prop('disabled', true);
+                        
                     });
-                */
+                
                 } else {
-                        console.error(xhr.statusText);
+                    console.error(xhr.statusText);
                 } 
             }
         }
@@ -102,7 +87,7 @@
     <br><br>
     <div class="control">
         <label for="ex1">Enter Youtube Video Link</label><br><br>
-        <input class="form-control yt_video_link" type="text" placeholder="Video URL e.g. https://www.youtube.com/watch?v=MtN1YnoL46Q"><br><br>
+        <input class="form-control yt_video_link" type="text" placeholder="Video URL e.g. https://www.youtube.com/watch?v=7VE6PNwmr9g"><br><br>
         <span class="btn btn-success btn_get_yt_video_link">Get Video</span>
     </div>
 
