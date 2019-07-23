@@ -13,71 +13,98 @@
     
 	<script>
     
-    $(document).on('click', '.btn_get_yt_video_link', function(event) {
-        event.preventDefault();
+    function toogle(id) {
+        var state = document.getElementById(id).style.display;
+        if (state == 'block') {
+            document.getElementById(id).style.display = 'none';
+        } else {
+            document.getElementById(id).style.display = 'block';
+        }
+    }
 
-        var link = $('.yt_video_link').val();
-        var data = {url: link};
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/', true);
-        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        xhr.send(JSON.stringify(data));
-
-        xhr.onload = function(e) {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    
-                    //document.write(xhr.responseText);
-                    var video_title = xhr.responseText;
-                    video_title = decodeURIComponent(video_title);
-                    console.log('Video Title -> '+video_title);
-
-                    var c = ''
-                    +'<br>'
-                    +'<span class="btn btn-primary btn-start">Start</span>';
-
-                    var d = ''
-                    +'<br>'
-
-                    +'<video src="videos/'+encodeURIComponent(video_title)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
-                    +'</video>';
-
-                    $('.btns').html(c);
-                    $('.youtube_video').html(d);
-                    
-                    
-                    $(document).on('click', '.btn-start', function(event) {
-                        $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
-                            if(e == "File does not exist. Error!") {
-                                alert("Error!");
-                            }else {
-                                c = ''
-                                +'<span class="btn btn-primary btn-start"> Start</span>'
-                                +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
-                                $('.btns').html(c);
-                            }
-                        });
-                    });
-                    
-
-                    $(document).on('click', '.btn-download', function(event) {
-                        
-                    });
-                
-                } else {
-                    console.error(xhr.statusText);
-                } 
+    function isValidLink(link) {
+        var urls = ['http://www.youtube.com/watch?', 'https://www.youtube.com/watch?', 'http://youtu.be/', 'https://youtu.be/'];
+        for(var i=0; i < urls.length; ++i) {
+            if(link.indexOf(urls[i]) === 0) {
+                return true;
             }
         }
+        return false;
+    }
 
-        xhr.onerror = function (e) {
-            console.error(xhr.statusText);
-        };
+    $(document).on('click', '.btn_get_yt_video_link', function(event) {
+        event.preventDefault();
+        
+        var link = $('.yt_video_link').val();
+        if(isValidLink(link)) {
+            // Reseting
+            $('.btns').html('');
+            $('.youtube_video').html('');
+            toogle('loading');
+
+            var data = {url: link};
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/', true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.send(JSON.stringify(data));
+
+            xhr.onload = function(e) {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        
+                        //document.write(xhr.responseText);
+                        var video_title = decodeURIComponent(xhr.responseText);
+                        console.log('Video Title -> '+video_title);
+                        /*var c = ''
+                                +'<br>'
+                                +'<span class="btn btn-primary btn-start">Convert to MP3</span>';*/
+
+                        var d = ''
+                        +'<br>'
+
+                        +'<video src="videos/'+encodeURIComponent(video_title)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
+                        +'</video>';
+
+                        //$('.btns').html(c);
+                        toogle('loading');            
+                        $('.youtube_video').html(d);
+                        
+                        
+                        /*$(document).on('click', '.btn-start', function(event) {
+                            $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
+                                if(e == "File does not exist. Error!") {
+                                    alert("Error!");
+                                }else {
+                                    c = ''
+                                    +'<span class="btn btn-primary btn-start"> Start</span>'
+                                    +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
+                                    $('.btns').html(c);
+                                }
+                            });
+                        });*/
+                        
+
+                        /*$(document).on('click', '.btn-download', function(event) {
+                            
+                        });*/
+                    
+                    } else {
+                        console.error(xhr.statusText);
+                        alert('Error on Request!');
+                    } 
+                }
+            }
+
+            xhr.onerror = function (e) {
+                console.error(xhr.statusText);
+                alert('Error on Request!');
+            }   
+           
+        }else {
+            alert('Provide a YouTube video link, please')
+        }
     });
-    
-
     </script>
-
 </head>
 <body>
 
@@ -92,8 +119,10 @@
     </div>
 
     <br><br>
-
     <div class="btns"></div>
+    <div id="loading" style="display: none;">
+        <img id="loading_image" src="images/loading.gif" alt="Loading..." />
+    </div>
     <div class="youtube_video"></div>
 </div>
 </body>

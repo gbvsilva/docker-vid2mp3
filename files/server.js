@@ -5,7 +5,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const puppeteer = require('puppeteer');
-const { exec } = require('child_process');
+const fork = require('child_process').fork;
+const spawn = require('child_process').spawn;
+//const spawnSync = require('child_process').spawnSync;
+const fs = require('fs');
 // Constants
 const PORT = 80;
 
@@ -21,16 +24,7 @@ app.get('/', (req, res) => {
 });
 
 
-const getMethods = (obj) => {
-  let properties = new Set()
-  let currentObj = obj
-  do {
-    Object.getOwnPropertyNames(currentObj).map(item => properties.add(item))
-  } while ((currentObj = Object.getPrototypeOf(currentObj)))
-  return [...properties.keys()].filter(item => typeof obj[item] === 'function')
-}
-
-async function getAudioAndVideo(url) {
+async function getAudioAndVideo(mainUrl) {
 	// Using Puppeteer
 	console.log('Puppeteer gonna launch!');
 	const browser = await puppeteer.launch({
@@ -38,121 +32,108 @@ async function getAudioAndVideo(url) {
 		args: ['--no-sandbox', '--disable-dev-shm-usage']
 	});
 
+	//const version = await browser.version();
+	//console.log('Browser version -> '+version)
 	const temp_page = await browser.newPage();
-	await temp_page.goto(url);
-
-	let bodyHTML = await temp_page.evaluate(() => document.body.innerHTML);
+	await temp_page.goto(mainUrl, {waitUntil: 'networkidle0'});
+	
+	let bodyHTML = await temp_page.content();
 	await temp_page.close();
 
-	var start = bodyHTML.indexOf('url_encoded_fmt_stream_map');
-	start += bodyHTML.substring(start).indexOf('http');
-	var end = bodyHTML.substring(start).indexOf('\"');
-	end += start;
-	
-	var srcUrl = bodyHTML.substring(start, end);
-	srcUrl = decodeURIComponent(srcUrl);
-	srcUrl = srcUrl.replace(/\\u0026/g, '&');
+	let audioSrc, videoSrc, videoTitle, result;
 
-	const page = await browser.newPage();
-	
-	let resUrl, headers, contentType;
-	let audioSrc, videoSrc;
-	console.log('\nINTERCEPTING RESPONSE');
-	await page.on('response', async response => {
-		resUrl = response.url();
-		headers = response.headers();
-		//console.log('URL -> '+resUrl);
-		for(var key in headers) {
-		    if(headers.hasOwnProperty(key)) {
-		    	if(key === 'content-type')
-		    		contentType = headers[key];
-		    }
-		}
-		if(resUrl.includes('videoplayback') && (contentType.includes('video') || contentType.includes('audio')))
-			console.log('URL -> '+resUrl);
-		if(contentType === 'video/webm' && parseInt(resUrl.match(/dur=(.*?)&/)[1]) > 30.0) {
-			videoSrc = resUrl;
-		}else if(contentType === 'audio/webm' && parseInt(resUrl.match(/dur=(.*?)&/)[1]) > 30.0) {
-			audioSrc = resUrl;
-		}
+	videoTitle = bodyHTML.match(/<h1 class=\"title .*?><.*?>(.*?)</)[1];
+	console.log('Video Title -> '+videoTitle);
+
+	if(!fs.existsSync('public/videos/'+videoTitle+'.mp4')) {
+		const page = await browser.newPage();
 		
-    	//console.log(await response.status());
-	});
-	//const client = await page.target().createCDPSession();
-	
-	/*await client.send('Network.enable');
-	await client.send('Network.setRequestInterception', {
-    	patterns: [{ urlPattern: '*videoplayback*', resourceType: 'XHR', interceptionStage: 'HeadersReceived'}]
-  	});
-	*/
-	
-	
-	/*await client.on('Network.requestIntercepted', async e => {
-	    //console.log(`Intercepted ${e.request.url} {interception id: ${e.interceptionId}}`);
+		console.log('\nINTERCEPTING RESPONSE');
 
-    	
-		const response = await client.send('Network.getResponseBodyForInterception',{ interceptionId: e.interceptionId });
-    	const contentTypeHeader = Object.keys(e.responseHeaders).find(k => k.toLowerCase() === 'content-type');
-    	let newBody, contentType = e.responseHeaders[contentTypeHeader];
-    	console.log('Intercepted Content-Type: '+contentType);
-
-    	if(contentType === 'video/webm' && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 30.0)
-			videoSrc = e.request.url;
-		if(contentType === 'audio/webm' && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 30.0)
-			audioSrc = e.request.url;
+		const client = await page.target().createCDPSession();
 		
-		await client.send('Network.continueInterceptedRequest', {
-      		interceptionId: e.interceptionId,
-    	});
-	});*/
+		await client.send('Network.enable');
+		
+		client.on( 'Network.requestWillBeSent', parameters => {
+			const request_url = parameters.request.url;
+			const initiator_url = parameters.initiator.url;
+			//console.log( 'The request', request_url, 'was initiated by', initiator_url, '.' );
+	    });
 
-	
-	
-	//const src = await getVideoSrc(bodyHTML);
-	
-	await page.goto(url, {waitUntil: 'networkidle0'});
-	//await page.waitForSelector('ytd-video-renderer,ytd-grid-video-renderer', { timeout: 10000 });
-	/*await client.send('Network.continueInterceptedRequest', {
-      interceptionId,
-    });*/
+		await client.send('Network.setRequestInterception', {
+	    	patterns: [{ urlPattern: '*videoplayback*', resourceType: 'XHR', interceptionStage: 'HeadersReceived'}]
+	  	});
+		
+		
+		await client.on('Network.requestIntercepted', async e => {
+		    console.log(`Intercepted ${e.request.url} {interception id: ${e.interceptionId}}`);
 
-	if(videoSrc != null) {
-		videoSrc = videoSrc.substring(0, videoSrc.indexOf('range=')-1).replace(/%2C/g, ',');
+	    	/*console.log('EVENT INFO: ');
+	      	console.log(e.interceptionId);
+	      	console.log(e.resourceType);
+	      	console.log(e.isNavigationRequest);*/
+
+	    	if(e.request.url.includes('mime=video') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 45.0)
+				videoSrc = e.request.url;
+			if(e.request.url.includes('mime=audio') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 45.0)
+				audioSrc = e.request.url;
+			
+			await client.send('Network.continueInterceptedRequest', {
+	      		interceptionId: e.interceptionId,
+	    	});
+		});
+
+		
+		await page.goto(mainUrl, {waitUntil: 'networkidle0'});
+		//await page.waitForRequest(request => request.url().includes('videoplayback'));
+		//await page.waitForResponse(response => response.url().includes('mime=audio'));
+
+		if(videoSrc != null) {
+			videoSrc = videoSrc.substring(0, videoSrc.indexOf('range=')-1).replace(/%2C/g, ',');
+		}
+		if(audioSrc != null) {
+			audioSrc = audioSrc.substring(0, audioSrc.indexOf('range=')-1).replace(/%2C/g, ',');
+		}
+		console.log('VideoSrc -> '+videoSrc);
+		console.log('AudioSrc -> '+audioSrc);
+		result = [videoTitle, videoSrc, audioSrc];
+	}else {
+		console.log('File already exists!');
+		result = [videoTitle];
 	}
-	if(audioSrc != null) {
-		audioSrc = audioSrc.substring(0, audioSrc.indexOf('range=')-1).replace(/%2C/g, ',');
-	}
+	
 	await browser.close();
 	console.log('Puppeteer closed!');
-	const videoTitle = bodyHTML.match(/document.title = \"(.*?) - YouTube\"/)[1];
-	console.log('VideoSrc -> '+videoSrc);
-	console.log('AudioSrc -> '+audioSrc);
-	
-	
-	return [videoTitle, videoSrc, audioSrc];
+	//console.log('\nRETURN -> '+result+'\n');
+	return result;
 }
 
 async function saveFiles(videoTitle, videoSrc, audioSrc) {
-	
-	var cmd = 'ffmpeg -i "'+videoSrc+'" -i "'+audioSrc+'" -pix_fmt yuv420p -c:v libx264 public/videos/"'+videoTitle+'".mp4';
-	//var cmd2 = 'ffmpeg "'+audioSrc+'" -O audio.webm';
-	await exec(cmd, (error, stdout, stderr) => {
-		if (error) {
-	    	console.error(`exec error: ${error}`);
-	    	return;
-	  	}
-		console.log(`stdout: ${stdout}`);
-		console.log(`stderr: ${stderr}`);
-	});
-	
 
-	/*await exec(cmd2, (error, stdout, stderr) => {
-		if (error) {
-	    	console.error(`exec error: ${error}`);
-	    	return;
-	  	}
-		console.log(`stdout: ${stdout}`);
-		console.log(`stderr: ${stderr}`);
+	/*const args = ['-y', '-i', videoSrc, '-i', audioSrc,
+			'-c:v', 'libx264', '-c:a', 'libmp3lame', 'public/videos/'+videoTitle+'.mp4'];
+	
+	var ffmpeg = spawn('ffmpeg', args);
+	
+	ffmpeg.stdout.on('data', (data) => {
+		console.log(`stdout: ${data}`);
+	});
+
+	ffmpeg.stderr.on('data', (data) => {
+		console.log(`stderr: ${data}`);
+	});
+
+	ffmpeg.on('close', (code) => {
+		console.log('Closing FFmpeg with "'+videoTitle+'" (code '+code+').');
+		response.send(videoTitle);
+	});*/
+
+	
+	const proc = await fork('./ffmpeg.js', [videoSrc, audioSrc, videoTitle]);
+	return proc;
+	/*await proc.on('message', function(msg) {
+		console.log('Closing FFmpeg with "'+videoTitle+'"');
+		response.send(videoTitle);
 	});*/
 }
 
@@ -161,15 +142,21 @@ app.post('/', (req, res) => {
 	console.log('Video link -> ' + url);
 	
 	getAudioAndVideo(url)
-		.then((videoInfo) => {
-			saveFiles(videoInfo[0], videoInfo[1], videoInfo[2]).then( () => {
-				console.log('End of server side.\n');
-				res.send(videoInfo[0]);	
-			});
-		})
-		/*.catch((err) => {
-			console.log('Error calling audioVideoFunction!');
-		})*/;
+		.then( (videoInfo) => {
+			if(videoInfo.length > 1) {
+				saveFiles(videoInfo[0], videoInfo[1], videoInfo[2])
+				.then( (proc) => {
+					proc.on('message', function(msg) {
+						console.log('Closing FFmpeg with "'+videoInfo[0]+'"');
+						res.status(200);
+						res.send(videoInfo[0]);
+						//res.end();
+					});
+				});
+			}else {
+				res.send(videoInfo[0]);
+			}
+		});
 
 });
 
