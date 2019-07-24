@@ -31,78 +31,91 @@
         }
         return false;
     }
-
-    $(document).on('click', '.btn_get_yt_video_link', function(event) {
-        event.preventDefault();
-        
-        var link = $('.yt_video_link').val();
-        if(isValidLink(link)) {
+    $(document).ready(function($)
+    {
+        $(document).on('click', '.btn_get_yt_video_link', function(event) {
+            event.preventDefault();
             // Reseting
             $('.btns').html('');
             $('.youtube_video').html('');
-            toogle('loading');
+            $('.btn_get_yt_video_link').prop('disabled', true);
+            $('.btn_get_yt_video_link').attr('disabled', true);
+            
+            var link = $('.yt_video_link').val();
+            if(isValidLink(link)) {
+                toogle('loading');
 
-            var data = {url: link};
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/', true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.send(JSON.stringify(data));
+                const data = {url: link};
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/', true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                //xhr.timeout = 0;
+                xhr.send(JSON.stringify(data));
 
-            xhr.onload = function(e) {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        
-                        //document.write(xhr.responseText);
-                        var video_title = decodeURIComponent(xhr.responseText);
-                        console.log('Video Title -> '+video_title);
-                        /*var c = ''
-                                +'<br>'
-                                +'<span class="btn btn-primary btn-start">Convert to MP3</span>';*/
-
-                        var d = ''
-                        +'<br>'
-
-                        +'<video src="videos/'+encodeURIComponent(video_title)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
-                        +'</video>';
-
-                        //$('.btns').html(c);
-                        toogle('loading');            
-                        $('.youtube_video').html(d);
-                        
-                        
-                        /*$(document).on('click', '.btn-start', function(event) {
-                            $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
-                                if(e == "File does not exist. Error!") {
-                                    alert("Error!");
-                                }else {
-                                    c = ''
-                                    +'<span class="btn btn-primary btn-start"> Start</span>'
-                                    +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
-                                    $('.btns').html(c);
-                                }
-                            });
-                        });*/
-                        
-
-                        /*$(document).on('click', '.btn-download', function(event) {
+                xhr.onload = function(e) {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
                             
-                        });*/
-                    
-                    } else {
-                        console.error(xhr.statusText);
-                        alert('Error on Request!');
-                    } 
-                }
-            }
+                            //console.log(xhr.responseText);
+                            var videoTitle = decodeURIComponent(xhr.responseText.match(/videoTitle: ->(.*?)<-/)[1]);
+                            console.log('Video Title -> '+videoTitle);
 
-            xhr.onerror = function (e) {
-                console.error(xhr.statusText);
-                alert('Error on Request!');
-            }   
-           
-        }else {
-            alert('Provide a YouTube video link, please')
-        }
+                            toogle('loading');
+                            $('.btn_get_yt_video_link').prop('disabled', false);
+                            $('.btn_get_yt_video_link').attr('disabled', false);
+                            if(videoTitle != 'This video is not supported!') {
+                                /*var c = ''
+                                        +'<br>'
+                                        +'<span class="btn btn-primary btn-start">Convert to MP3</span>';*/
+
+                                var d = ''
+                                +'<br>'
+
+                                +'<video src="videos/'+encodeURIComponent(videoTitle)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
+                                +'</video>';
+
+                                //$('.btns').html(c);
+                                            
+                                $('.youtube_video').html(d);
+                                
+                                
+                                /*$(document).on('click', '.btn-start', function(event) {
+                                    $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
+                                        if(e == "File does not exist. Error!") {
+                                            alert("Error!");
+                                        }else {
+                                            c = ''
+                                            +'<span class="btn btn-primary btn-start"> Start</span>'
+                                            +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
+                                            $('.btns').html(c);
+                                        }
+                                    });
+                                });*/
+                                
+
+                                /*$(document).on('click', '.btn-download', function(event) {
+                                    
+                                });*/
+                            }else {
+                                alert(videoTitle);
+                            }
+                        } else {
+                            console.error('XHR status -> '+xhr.status);
+                            alert('Error on Request!');
+                        }
+                    }
+                }
+
+                xhr.onerror = function (e) {
+                    console.error('XHR status -> '+xhr.status);
+                    alert('Error on Request!');
+                }
+               
+            }else {
+                alert('Provide a YouTube video link, please!')
+            }
+            return true;
+        });
     });
     </script>
 </head>

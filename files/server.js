@@ -23,7 +23,6 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-
 async function getAudioAndVideo(mainUrl) {
 	// Using Puppeteer
 	console.log('Puppeteer gonna launch!');
@@ -40,9 +39,10 @@ async function getAudioAndVideo(mainUrl) {
 	let bodyHTML = await temp_page.content();
 	await temp_page.close();
 
-	let audioSrc, videoSrc, videoTitle, result;
+	let audioSrc, videoSrc, videoTitle, videoDuration, result;
 
 	videoTitle = bodyHTML.match(/<h1 class=\"title .*?><.*?>(.*?)</)[1];
+	videoTitle = videoTitle.replace(/\//g, '-');
 	console.log('Video Title -> '+videoTitle);
 
 	if(!fs.existsSync('public/videos/'+videoTitle+'.mp4')) {
@@ -73,9 +73,11 @@ async function getAudioAndVideo(mainUrl) {
 	      	console.log(e.resourceType);
 	      	console.log(e.isNavigationRequest);*/
 
-	    	if(e.request.url.includes('mime=video') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 45.0)
+	    	if(e.request.url.includes('mime=video') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0) {
 				videoSrc = e.request.url;
-			if(e.request.url.includes('mime=audio') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 45.0)
+				videoDuration = parseInt(e.request.url.match(/dur=(.*?)&/)[1]);
+	    	}
+			if(e.request.url.includes('mime=audio') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0)
 				audioSrc = e.request.url;
 			
 			await client.send('Network.continueInterceptedRequest', {
@@ -96,10 +98,10 @@ async function getAudioAndVideo(mainUrl) {
 		}
 		console.log('VideoSrc -> '+videoSrc);
 		console.log('AudioSrc -> '+audioSrc);
-		result = [videoTitle, videoSrc, audioSrc];
+		result = [videoTitle, videoDuration, videoSrc, audioSrc];
 	}else {
 		console.log('File already exists!');
-		result = [videoTitle];
+		result = [videoTitle, videoDuration];
 	}
 	
 	await browser.close();
@@ -108,10 +110,10 @@ async function getAudioAndVideo(mainUrl) {
 	return result;
 }
 
-async function saveFiles(videoTitle, videoSrc, audioSrc) {
+async function saveFiles(res, videoTitle, videoDuration, videoSrc, audioSrc) {
 
-	/*const args = ['-y', '-i', videoSrc, '-i', audioSrc,
-			'-c:v', 'libx264', '-c:a', 'libmp3lame', 'public/videos/'+videoTitle+'.mp4'];
+	const args = ['-y', '-i', videoSrc, '-i', audioSrc, /*
+			'-c:v', 'libx264', '-c:a', 'libmp3lame',*/ 'public/videos/'+videoTitle+'.webm'];
 	
 	var ffmpeg = spawn('ffmpeg', args);
 	
@@ -121,43 +123,46 @@ async function saveFiles(videoTitle, videoSrc, audioSrc) {
 
 	ffmpeg.stderr.on('data', (data) => {
 		console.log(`stderr: ${data}`);
+		res.write('stderr: '+data);
 	});
 
 	ffmpeg.on('close', (code) => {
 		console.log('Closing FFmpeg with "'+videoTitle+'" (code '+code+').');
-		response.send(videoTitle);
-	});*/
+		if(code === 0) {
+			res.write('videoTitle: ->'+videoTitle+'<-');
+		}else {
+			res.write('videoTitle: ->This video is not supported!<-');
+		}
+
+		res.send();
+	});
 
 	
-	const proc = await fork('./ffmpeg.js', [videoSrc, audioSrc, videoTitle]);
-	return proc;
-	/*await proc.on('message', function(msg) {
-		console.log('Closing FFmpeg with "'+videoTitle+'"');
-		response.send(videoTitle);
-	});*/
+	/*var proc = await fork('./ffmpeg.js', [videoSrc, audioSrc, videoTitle]);
+	
+	return proc;*/
+	
 }
 
 app.post('/', (req, res) => {
 	var url = req.body.url;
 	console.log('Video link -> ' + url);
-	
-	getAudioAndVideo(url)
-		.then( (videoInfo) => {
-			if(videoInfo.length > 1) {
-				saveFiles(videoInfo[0], videoInfo[1], videoInfo[2])
-				.then( (proc) => {
-					proc.on('message', function(msg) {
-						console.log('Closing FFmpeg with "'+videoInfo[0]+'"');
-						res.status(200);
-						res.send(videoInfo[0]);
-						//res.end();
-					});
-				});
-			}else {
-				res.send(videoInfo[0]);
-			}
-		});
 
+	getAudioAndVideo(url).then((videoInfo) => {
+		if(videoInfo.length > 2) {
+			saveFiles(res, videoInfo[0], videoInfo[1], videoInfo[2], videoInfo[3])/*.then((proc) => {
+				proc.on('message', function(msg) {
+					//console.log('MESSAGE FROM THE CHILD -> ', msg);
+					console.log('Closing FFmpeg with "'+videoInfo[0]+'"');
+					res.send(videoInfo[0]);
+				});	
+			})*/;
+		
+		}else {
+			res.write('videoTitle: ->'+videoInfo[0]+'<-');
+			res.send();
+		}
+	});
 });
 
 app.listen(PORT, function() {
