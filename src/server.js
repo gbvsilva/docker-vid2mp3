@@ -4,11 +4,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
-const puppeteer = require('puppeteer');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
+const rp = require('request-promise');
 // Constants
-const PORT = 80;
+const PORT = 8000;
 
 // App
 const app = express();
@@ -21,8 +21,19 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-async function getAudioAndVideo(mainUrl) {
-	
+async function getMedia(html) {
+	var i = html.indexOf('{\\\"itag\\\":18');
+	var j = html.substring(i).indexOf('}')+1;
+	var str = html.substring(i, i+j).replace(/\\/g, '');
+	console.log(str)
+	var mediaInfo = JSON.parse(str.replace(/; codecs=\".+?\"/g, ''));
+	mediaInfo.title = html.match(/\\\"title\\\":\\\"(.+?)\\\"/)[1];
+	console.log('Title -> '+mediaInfo.title);
+	if(typeof mediaInfo.url === 'undefined') {
+
+	}else {
+		return mediaInfo;
+	}
 }
 
 function spawnWgets(videoTitle, videoSrc, audioSrc, stderr1, stderr2, response) {
@@ -149,17 +160,27 @@ async function saveFiles(videoTitle, videoDuration, videoSrc, audioSrc, res) {
 app.post('/', (req, res) => {
 	const url = req.body.url;
 	console.log('Video link -> ' + url);
+	
+	rp(url)
+		.then((html) => {
+			// success
+			getMedia(html).then((mediaInfo) => {
+
+			})
+		})
+		.catch((err) => {
+
+		});
 
 	res.setHeader("Content-Type", "application/json");
-
-	getAudioAndVideo(url).then((videoInfo) => {
+	/*getAudioAndVideo(url).then((videoInfo) => {
 		if(videoInfo[2] != null && videoInfo[3] != null)
 			saveFiles(videoInfo[0], videoInfo[1], videoInfo[2], videoInfo[3], res);
 		else {
 			res.write(JSON.stringify({"videoTitle": "This video is not supported!"}));
 			res.end();
 		}
-	});
+	});*/
 });
 
 app.listen(PORT, function() {

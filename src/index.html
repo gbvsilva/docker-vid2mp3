@@ -23,27 +23,23 @@
     }
 
     function isValidLink(link) {
-        var urls = ['http://www.youtube.com/watch?', 'https://www.youtube.com/watch?', 'http://youtu.be/', 'https://youtu.be/'];
-        for(var i=0; i < urls.length; ++i) {
-            if(link.indexOf(urls[i]) === 0) {
-                return true;
-            }
-        }
-        return false;
+        return link.startsWith('https://www.youtube.com/watch?') || link.startsWith('https://youtu.be/')
     }
     $(document).ready(function($)
     {
         $(document).on('click', '.btn_get_yt_video_link', function(event) {
             event.preventDefault();
+            
             // Reseting
             $('.btns').html('');
             $('.youtube_video').html('');
-            $('.btn_get_yt_video_link').prop('disabled', true);
-            $('.btn_get_yt_video_link').attr('disabled', true);
             
             var link = $('.yt_video_link').val();
             if(isValidLink(link)) {
+
                 toogle('loading');
+                $('.btn_get_yt_video_link').prop('disabled', true);
+                $('.btn_get_yt_video_link').attr('disabled', true);
 
                 const data = {url: link};
                 const xhr = new XMLHttpRequest();
@@ -62,10 +58,8 @@
                             toogle('loading');
                             $('.btn_get_yt_video_link').prop('disabled', false);
                             $('.btn_get_yt_video_link').attr('disabled', false);
+                            
                             if(videoTitle != 'This video is not supported!') {
-                                /*var c = ''
-                                        +'<br>'
-                                        +'<span class="btn btn-primary btn-start">Convert to MP3</span>';*/
 
                                 var d = ''
                                 +'<br>'
@@ -111,7 +105,7 @@
                 }
                
             }else {
-                alert('Provide a YouTube video link, please!')
+                alert('Link inválido!')
             }
             return true;
         });

@@ -17,6 +17,6 @@ RUN chmod +x vid2mp3.sh
 # Bundle app source
 COPY . .
 
-EXPOSE 80 443
+EXPOSE 8000
 
 ENTRYPOINT ["/opt/vid2mp3/vid2mp3.sh"]
