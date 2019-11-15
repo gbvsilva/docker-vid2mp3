@@ -21,22 +21,88 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-async function getMedia(html) {
-	var i = html.indexOf('{\\\"itag\\\":18');
-	var j = html.substring(i).indexOf('}')+1;
-	var str = html.substring(i, i+j).replace(/\\/g, '');
-	console.log(str)
-	var mediaInfo = JSON.parse(str.replace(/; codecs=\".+?\"/g, ''));
-	mediaInfo.title = html.match(/\\\"title\\\":\\\"(.+?)\\\"/)[1];
-	console.log('Title -> '+mediaInfo.title);
-	if(typeof mediaInfo.url === 'undefined') {
+function repeatRequestPromise(url) {
 
-	}else {
-		return mediaInfo;
-	}
 }
 
-function spawnWgets(videoTitle, videoSrc, audioSrc, stderr1, stderr2, response) {
+async function getMedia(url) {
+	return new Promise((resolve, reject) => {
+		var tries = 0;
+		//while(tries < 5){
+			rp(url)
+				.then((html) => {
+					// success
+					var i = html.indexOf('{\\\"itag\\\":18');
+					var j = html.substring(i).indexOf('}')+1;
+					var str = html.substring(i, i+j).replace(/\\/g, '');
+					console.log(str)
+					var mediaInfo = JSON.parse(str.replace(/; codecs=\".+?\"/g, ''));
+					mediaInfo.title = html.match(/\\\"title\\\":\\\"(.+?)\\\"/)[1];
+					console.log('Title -> '+mediaInfo.title);
+					
+					if(typeof mediaInfo.url === 'undefined') {
+						var cipher = decodeURIComponent(mediaInfo.cipher);
+						console.log('CIPHER -> '+cipher);
+						let m, url;
+						if(cipher.indexOf('s=') < cipher.indexOf('url=')) {
+							console.log('OK1');
+							m = cipher.match(/s=(.+?)u0026/);
+							if(cipher.indexOf('url=') < cipher.indexOf('sp=sig')) {
+								console.log('OK1.1');
+								url = cipher.match(/url=(.+)u0026/);
+							}
+							else {
+								console.log('OK1.2');
+								url = cipher.match(/url=(.+)/);
+							}
+						}else {
+							console.log('OK2');
+							url = cipher.match(/url=(.+?)u0026/);
+							if(cipher.indexOf('u0026s=') < cipher.indexOf('sp=sig')) {
+								console.log('OK2.1');
+								m = cipher.match(/u0026s=(.+?)u0026/);
+							}
+							else {
+								console.log('OK2.2');
+								m = cipher.match(/u0026s=(.*)/);
+							}
+						}
+
+						if(m && url) {
+							console.log('OK3');
+							url = url[1];
+							var sig = Array.from(m[1]);
+							console.log('sig -> '+sig.join(''));
+							m = sig.join('').match('2IxgL');
+							if(m) {
+								sig.reverse();
+								console.log('Reverse -> '+sig.join(''));
+							}
+							if(sig.join('').indexOf('LgxI2') > -1 && sig.indexOf('=') > -1 && sig.indexOf('=') < 100) {
+								console.log('OK4');
+								sig[sig.indexOf('=')] = sig[sig.length-1];
+								sig[sig.length-1] = '=';
+								sig[0] = 'A';
+								mediaInfo.url = url+'&sig='+sig.join('');
+								console.log('== SUCCESS ==');
+								resolve(mediaInfo);
+							}
+						}
+					}else {
+						console.log('== SUCCESS ==');
+						resolve(mediaInfo);
+					}
+				})
+				.catch((err) => {
+					console.log('Error on request-promise: '+err.stack);
+				});
+			++tries;
+		//}
+	}); 
+	
+}
+
+/*function spawnWgets(videoTitle, videoSrc, audioSrc, stderr1, stderr2, response) {
 	var result = [];
 	return new Promise((resolve, reject) => {
 		const wget1_args = ['-O', videoTitle+'.mp4', videoSrc];
@@ -156,21 +222,16 @@ async function saveFiles(videoTitle, videoDuration, videoSrc, audioSrc, res) {
 		res.end();
 	}
 }
-
+*/
 app.post('/', (req, res) => {
 	const url = req.body.url;
 	console.log('Video link -> ' + url);
 	
-	rp(url)
-		.then((html) => {
-			// success
-			getMedia(html).then((mediaInfo) => {
+	const media = getMedia(url);
 
-			})
-		})
-		.catch((err) => {
-
-		});
+	media.then((info) => {
+		console.log('\nVideo URL -> '+info.url);	
+	})
 
 	res.setHeader("Content-Type", "application/json");
 	/*getAudioAndVideo(url).then((videoInfo) => {
