@@ -1,6 +1,6 @@
 {
   "name": "vid2mp3_downloader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Video to MP3 Downloader",
   "author": "Graco Babeuf <graco.babeuf18@gmail.com>",
   "main": "server.js",
@@ -11,8 +11,7 @@
     "express": "^4.16.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
-    "body-parser": "^1.19.0",
-    "puppeteer": "^1.18.1"
+    "body-parser": "^1.19.0"
   },
   "repository": {
     "type": "git",
