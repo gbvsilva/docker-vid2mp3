@@ -2,6 +2,7 @@
 
 // Modules
 const express = require('express');
+const puppeteer = require('puppeteer-core');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
@@ -20,40 +21,27 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-function repeatRequestPromise(url) {
-
-}
-
-async function getAudioAndVideo(mainUrl) {
-	// Using Puppeteer
+async function getMedia(mainUrl) {
+	/* Using Puppeteer */
 	console.log('Puppeteer gonna launch!');
 	const browser = await puppeteer.launch({
-		executablePath: 'google-chrome',
+		executablePath: '/usr/bin/chromium-browser',
 		args: ['--no-sandbox', '--disable-dev-shm-usage']
 	});
 
 	//const version = await browser.version();
 	//console.log('Browser version -> '+version)
-	const temp_page = await browser.newPage();
-	await temp_page.goto(mainUrl, {waitUntil: 'networkidle0'});
-
-	let bodyHTML = await temp_page.content();
-	await temp_page.close();
-
-	let audioSrc, videoSrc, videoTitle, videoDuration, result;
-
-	videoTitle = bodyHTML.match(/<h1 class=\"title .*?><.*?>(.*?)</)[1];
-	console.log('Video Title -> '+videoTitle);
-
 	const page = await browser.newPage();
+	//await page.goto(mainUrl, {waitUntil: 'networkidle0'});
 
+	
 	console.log('\nINTERCEPTING RESPONSE');
 
 	const client = await page.target().createCDPSession();
 
 	await client.send('Network.enable');
 
-	client.on( 'Network.requestWillBeSent', parameters => {
+	client.on('Network.requestWillBeSent', parameters => {
 		const request_url = parameters.request.url;
 		const initiator_url = parameters.initiator.url;
 		//console.log( 'The request', request_url, 'was initiated by', initiator_url, '.' );
@@ -63,43 +51,60 @@ async function getAudioAndVideo(mainUrl) {
     	patterns: [{ urlPattern: '*videoplayback*', resourceType: 'XHR', interceptionStage: 'HeadersReceived'}]
   	});
 
-
+	let videoSource;
 	await client.on('Network.requestIntercepted', async e => {
 	    console.log(`Intercepted ${e.request.url} {interception id: ${e.interceptionId}}`);
-
-    	/*console.log('EVENT INFO: ');
-      	console.log(e.interceptionId);
-      	console.log(e.resourceType);
-      	console.log(e.isNavigationRequest);*/
-
-    	if(e.request.url.includes('mime=video') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0) {
-			videoSrc = e.request.url;
-			videoDuration = parseInt(e.request.url.match(/dur=(.*?)&/)[1]);
-    	}
-		if(e.request.url.includes('mime=audio') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0)
-			audioSrc = e.request.url;
-
-		await client.send('Network.continueInterceptedRequest', {
-      		interceptionId: e.interceptionId,
-    	});
+	    if(e.request.url.includes('mime=video'))
+	    	videoSource = e.request.url.split('&');
 	});
 
+	await page.goto(mainUrl, {waitUntil: 'domcontentloaded'});
 
-	await page.goto(mainUrl, {waitUntil: 'networkidle0'});
+	let pageContent = await page.content();
 
-	if(videoSrc != null) {
-		videoSrc = videoSrc.substring(0, videoSrc.indexOf('range=')-1).replace(/%2C/g, ',');
-	}
-	if(audioSrc != null) {
-		audioSrc = audioSrc.substring(0, audioSrc.indexOf('range=')-1).replace(/%2C/g, ',');
-	}
-	console.log('VideoSrc -> '+videoSrc);
-	console.log('AudioSrc -> '+audioSrc);
-	result = [videoTitle, videoDuration, videoSrc, audioSrc];
+	let videoTitle = await pageContent.match(/\"title\":\"(.+?)\"/)[1];
+	console.log('Video Title -> '+videoTitle);
 
 	await browser.close();
 	console.log('Puppeteer closed!');
-	return result;
+
+	/* TODO: Getting itag content */
+	if(typeof videoSource !== 'undefined') {
+		var i = pageContent.indexOf('{\\\"itag\\\":18');
+		var	j = pageContent.substring(i).indexOf('}]')+1;
+		var media = JSON.parse(pageContent.substring(i, i+j).replace(/\\/g, '')
+								.replace(/; codecs.*\".*\",/, '\",'));
+		media.title = videoTitle;
+
+		if(typeof media.url === 'undefined') {
+			var url = media.cipher.replace(/u0026/g, '&').split('&');
+			i  = url.findIndex(elem => elem.startsWith('url='));
+			url = decodeURIComponent(url[i].match(/url=(.+)/)[1]);
+			//console.log('url -> '+url);
+			
+			i = pageContent.indexOf('{\\\"itag\\\":'+videoSource.join('')
+									.match(/itag=(.+?)aitags/)[1]);
+			j = pageContent.substring(i).indexOf('},{')+1;
+			var cipher = pageContent.substring(i, i+j).replace(/\\/g, '');
+			cipher = cipher.match(/cipher\":\"(.+?)\"/)[1].replace(/u0026/g, '&');
+			cipher = cipher.split('&');
+			//console.log('cipher -> '+cipher);
+			
+			i = cipher.findIndex(elem => elem.startsWith('s='));
+			/* Starting Crypto Analysis */
+			var s = decodeURIComponent(cipher[j].match(/s=(.+)/)[1]);
+			if(s.includes('2IxgL')) {
+				s = s.split('').reverse().join('');
+				
+				//console.log('s -> '+s);	
+			}
+			
+		}else {
+			return media;
+		}
+	}
+
+	
 }
 
 /*function spawnWgets(videoTitle, videoSrc, audioSrc, stderr1, stderr2, response) {
@@ -228,10 +233,6 @@ app.post('/', (req, res) => {
 	console.log('Video link -> ' + url);
 	
 	const media = getMedia(url);
-
-	media.then((info) => {
-		console.log('\nVideo URL -> '+info.url);	
-	})
 
 	res.setHeader("Content-Type", "application/json");
 	/*getAudioAndVideo(url).then((videoInfo) => {
