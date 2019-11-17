@@ -6,7 +6,6 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
-const rp = require('request-promise');
 // Constants
 const PORT = 8000;
 
@@ -25,81 +24,82 @@ function repeatRequestPromise(url) {
 
 }
 
-async function getMedia(url) {
-	return new Promise((resolve, reject) => {
-		var tries = 0;
-		//while(tries < 5){
-			rp(url)
-				.then((html) => {
-					// success
-					var i = html.indexOf('{\\\"itag\\\":18');
-					var j = html.substring(i).indexOf('}')+1;
-					var str = html.substring(i, i+j).replace(/\\/g, '');
-					console.log(str)
-					var mediaInfo = JSON.parse(str.replace(/; codecs=\".+?\"/g, ''));
-					mediaInfo.title = html.match(/\\\"title\\\":\\\"(.+?)\\\"/)[1];
-					console.log('Title -> '+mediaInfo.title);
-					
-					if(typeof mediaInfo.url === 'undefined') {
-						var cipher = decodeURIComponent(mediaInfo.cipher);
-						console.log('CIPHER -> '+cipher);
-						let m, url;
-						if(cipher.indexOf('s=') < cipher.indexOf('url=')) {
-							console.log('OK1');
-							m = cipher.match(/s=(.+?)u0026/);
-							if(cipher.indexOf('url=') < cipher.indexOf('sp=sig')) {
-								console.log('OK1.1');
-								url = cipher.match(/url=(.+)u0026/);
-							}
-							else {
-								console.log('OK1.2');
-								url = cipher.match(/url=(.+)/);
-							}
-						}else {
-							console.log('OK2');
-							url = cipher.match(/url=(.+?)u0026/);
-							if(cipher.indexOf('u0026s=') < cipher.indexOf('sp=sig')) {
-								console.log('OK2.1');
-								m = cipher.match(/u0026s=(.+?)u0026/);
-							}
-							else {
-								console.log('OK2.2');
-								m = cipher.match(/u0026s=(.*)/);
-							}
-						}
+async function getAudioAndVideo(mainUrl) {
+	// Using Puppeteer
+	console.log('Puppeteer gonna launch!');
+	const browser = await puppeteer.launch({
+		executablePath: 'google-chrome',
+		args: ['--no-sandbox', '--disable-dev-shm-usage']
+	});
 
-						if(m && url) {
-							console.log('OK3');
-							url = url[1];
-							var sig = Array.from(m[1]);
-							console.log('sig -> '+sig.join(''));
-							m = sig.join('').match('2IxgL');
-							if(m) {
-								sig.reverse();
-								console.log('Reverse -> '+sig.join(''));
-							}
-							if(sig.join('').indexOf('LgxI2') > -1 && sig.indexOf('=') > -1 && sig.indexOf('=') < 100) {
-								console.log('OK4');
-								sig[sig.indexOf('=')] = sig[sig.length-1];
-								sig[sig.length-1] = '=';
-								sig[0] = 'A';
-								mediaInfo.url = url+'&sig='+sig.join('');
-								console.log('== SUCCESS ==');
-								resolve(mediaInfo);
-							}
-						}
-					}else {
-						console.log('== SUCCESS ==');
-						resolve(mediaInfo);
-					}
-				})
-				.catch((err) => {
-					console.log('Error on request-promise: '+err.stack);
-				});
-			++tries;
-		//}
-	}); 
-	
+	//const version = await browser.version();
+	//console.log('Browser version -> '+version)
+	const temp_page = await browser.newPage();
+	await temp_page.goto(mainUrl, {waitUntil: 'networkidle0'});
+
+	let bodyHTML = await temp_page.content();
+	await temp_page.close();
+
+	let audioSrc, videoSrc, videoTitle, videoDuration, result;
+
+	videoTitle = bodyHTML.match(/<h1 class=\"title .*?><.*?>(.*?)</)[1];
+	console.log('Video Title -> '+videoTitle);
+
+	const page = await browser.newPage();
+
+	console.log('\nINTERCEPTING RESPONSE');
+
+	const client = await page.target().createCDPSession();
+
+	await client.send('Network.enable');
+
+	client.on( 'Network.requestWillBeSent', parameters => {
+		const request_url = parameters.request.url;
+		const initiator_url = parameters.initiator.url;
+		//console.log( 'The request', request_url, 'was initiated by', initiator_url, '.' );
+    });
+
+	await client.send('Network.setRequestInterception', {
+    	patterns: [{ urlPattern: '*videoplayback*', resourceType: 'XHR', interceptionStage: 'HeadersReceived'}]
+  	});
+
+
+	await client.on('Network.requestIntercepted', async e => {
+	    console.log(`Intercepted ${e.request.url} {interception id: ${e.interceptionId}}`);
+
+    	/*console.log('EVENT INFO: ');
+      	console.log(e.interceptionId);
+      	console.log(e.resourceType);
+      	console.log(e.isNavigationRequest);*/
+
+    	if(e.request.url.includes('mime=video') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0) {
+			videoSrc = e.request.url;
+			videoDuration = parseInt(e.request.url.match(/dur=(.*?)&/)[1]);
+    	}
+		if(e.request.url.includes('mime=audio') && parseInt(e.request.url.match(/dur=(.*?)&/)[1]) > 59.0)
+			audioSrc = e.request.url;
+
+		await client.send('Network.continueInterceptedRequest', {
+      		interceptionId: e.interceptionId,
+    	});
+	});
+
+
+	await page.goto(mainUrl, {waitUntil: 'networkidle0'});
+
+	if(videoSrc != null) {
+		videoSrc = videoSrc.substring(0, videoSrc.indexOf('range=')-1).replace(/%2C/g, ',');
+	}
+	if(audioSrc != null) {
+		audioSrc = audioSrc.substring(0, audioSrc.indexOf('range=')-1).replace(/%2C/g, ',');
+	}
+	console.log('VideoSrc -> '+videoSrc);
+	console.log('AudioSrc -> '+audioSrc);
+	result = [videoTitle, videoDuration, videoSrc, audioSrc];
+
+	await browser.close();
+	console.log('Puppeteer closed!');
+	return result;
 }
 
 /*function spawnWgets(videoTitle, videoSrc, audioSrc, stderr1, stderr2, response) {
