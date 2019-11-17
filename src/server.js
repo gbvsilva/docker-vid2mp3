@@ -21,6 +21,18 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+function diffS(s, sig) {
+	var i = s.length - sig.length;
+	var idxs = [];
+	for(var j=i; j < s.length; ++j) {
+		if(s[j] !== sig[j-2]) {
+			idxs.push([j, s.lastIndexOf(s[j])]);
+			s[j] = '&'; // Visited
+		}
+	}
+	return idxs;
+}
+
 async function getMedia(mainUrl) {
 	/* Using Puppeteer */
 	console.log('Puppeteer gonna launch!');
@@ -92,7 +104,7 @@ async function getMedia(mainUrl) {
 			
 			i = cipher.findIndex(elem => elem.startsWith('s='));
 			/* Starting Crypto Analysis */
-			var s = decodeURIComponent(cipher[j].match(/s=(.+)/)[1]);
+			var s = decodeURIComponent(cipher[i].match(/s=(.+)/)[1]);
 			if(s.includes('2IxgL')) {
 				s = s.split('').reverse().join('');
 				
