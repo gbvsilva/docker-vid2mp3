@@ -22,15 +22,18 @@ app.get('/', (req, res) => {
 });
 
 function diffS(s, sig) {
-	var i = s.length - sig.length;
-	var idxs = [];
-	for(var j=i; j < s.length; ++j) {
-		if(s[j] !== sig[j-2]) {
-			idxs.push([j, s.lastIndexOf(s[j])]);
-			s[j] = '&'; // Visited
+	var i = s.indexOf('xI2')-3;
+	var changes = {};
+	changes.left = i;
+	changes.indexes = [];
+	s = s.split('');
+	for(; i < sig.length; ++i) {
+		if(s[i] != sig[i-2]) {
+			changes.indexes.push([i, s.indexOf(sig[i-2])]);
 		}
 	}
-	return idxs;
+	changes.right = i;
+	return changes;
 }
 
 async function getMedia(mainUrl) {
@@ -80,19 +83,15 @@ async function getMedia(mainUrl) {
 	await browser.close();
 	console.log('Puppeteer closed!');
 
-	/* TODO: Getting itag content */
 	if(typeof videoSource !== 'undefined') {
 		var i = pageContent.indexOf('{\\\"itag\\\":18');
 		var	j = pageContent.substring(i).indexOf('}]')+1;
 		var media = JSON.parse(pageContent.substring(i, i+j).replace(/\\/g, '')
 								.replace(/; codecs.*\".*\",/, '\",'));
 		media.title = videoTitle;
-
+		console.log('videoSource is not undefined!');
 		if(typeof media.url === 'undefined') {
-			var url = media.cipher.replace(/u0026/g, '&').split('&');
-			i  = url.findIndex(elem => elem.startsWith('url='));
-			url = decodeURIComponent(url[i].match(/url=(.+)/)[1]);
-			//console.log('url -> '+url);
+			console.log('Original URL not found!');
 			
 			i = pageContent.indexOf('{\\\"itag\\\":'+videoSource.join('')
 									.match(/itag=(.+?)aitags/)[1]);
@@ -102,15 +101,45 @@ async function getMedia(mainUrl) {
 			cipher = cipher.split('&');
 			//console.log('cipher -> '+cipher);
 			
-			i = cipher.findIndex(elem => elem.startsWith('s='));
 			/* Starting Crypto Analysis */
+			i = cipher.findIndex(elem => elem.startsWith('s='));
 			var s = decodeURIComponent(cipher[i].match(/s=(.+)/)[1]);
-			if(s.includes('2IxgL')) {
-				s = s.split('').reverse().join('');
-				
-				//console.log('s -> '+s);	
+			console.log('VideoSource -> ' +videoSource);
+			i = videoSource.findIndex(elem => elem.startsWith('sig='))
+			var sig = decodeURIComponent(videoSource[i].match(/sig=(.+)/)[1]);
+			if(s.includes('ww2Ix')) {
+				s = s.split('').reverse().join('');				
+			}
+			console.log('\ns -> '+s);
+			console.log('sig -> '+sig+'\n');
+			var changes = diffS(s, sig);
+
+			var url = media.cipher.replace(/u0026/g, '&').split('&');
+			i  = url.findIndex(elem => elem.startsWith('s='));
+			var sFinal = decodeURIComponent(url[i].match(/s=(.+)/)[1]);
+			
+			sFinal = sFinal.split('');
+			if(sFinal.includes('ww2Ix')) {
+				sFinal = sFinal.reverse();
 			}
 			
+			console.log('sFinal0 -> '+sFinal.join(''));
+			changes.indexes.forEach(elem => {
+				console.log('IdxElem -> '+elem.toString());
+				sFinal[elem[0]] = sFinal[elem[1]];
+			});
+			console.log('sFinal1 -> '+sFinal.join(''));
+			sFinal.splice(0, changes.left, '');
+			
+			for(var j=0; j < sFinal.length-changes.right-1; ++j)
+				sFinal.pop();
+			console.log('sFinal2 -> '+sFinal.join(''));
+			sFinal = sFinal.join('');
+
+			i  = url.findIndex(elem => elem.startsWith('url='));
+			url = decodeURIComponent(url[i].match(/url=(.+)/)[1]);
+			url += '&sig='+sFinal;
+			console.log('FINAL URL -> '+url);
 		}else {
 			return media;
 		}
