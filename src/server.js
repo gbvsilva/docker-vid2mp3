@@ -22,14 +22,14 @@ app.get('/', (req, res) => {
 });
 
 function diffS(s, sig) {
-	var i = s.indexOf('xI2')-3;
+	var i = s.length-sig.length;
 	var changes = {};
 	changes.left = i;
 	changes.indexes = [];
 	s = s.split('');
-	for(; i < sig.length; ++i) {
-		if(s[i] != sig[i-2]) {
-			changes.indexes.push([i, s.indexOf(sig[i-2])]);
+	for(var j=i; j < sig.length; ++j) {
+		if(s[j] != sig[j-i]) {
+			changes.indexes.push([j, s.indexOf(sig[j-i])]);
 		}
 	}
 	changes.right = i;
@@ -112,7 +112,7 @@ async function getMedia(mainUrl) {
 			}
 			console.log('\ns -> '+s);
 			console.log('sig -> '+sig+'\n');
-			var changes = diffS(s, sig);
+			const changes = diffS(s, sig);
 
 			var url = media.cipher.replace(/u0026/g, '&').split('&');
 			i  = url.findIndex(elem => elem.startsWith('s='));
@@ -131,8 +131,8 @@ async function getMedia(mainUrl) {
 			console.log('sFinal1 -> '+sFinal.join(''));
 			sFinal.splice(0, changes.left, '');
 			
-			for(var j=0; j < sFinal.length-changes.right-1; ++j)
-				sFinal.pop();
+			/*for(var j=0; j < sFinal.length-changes.right-1; ++j)
+				sFinal.pop();*/
 			console.log('sFinal2 -> '+sFinal.join(''));
 			sFinal = sFinal.join('');
 
