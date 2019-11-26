@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 });
 
 function diffS(s, sig) {
-	var i = s.length-sig.length;
+	var i = s.indexOf('xI')-3;
 	var changes = {};
 	changes.left = i;
 	changes.indexes = [];
@@ -89,10 +89,10 @@ async function getMedia(mainUrl) {
 		var media = JSON.parse(pageContent.substring(i, i+j).replace(/\\/g, '')
 								.replace(/; codecs.*\".*\",/, '\",'));
 		media.title = videoTitle;
-		console.log('videoSource is not undefined!');
+		//console.log('videoSource is not undefined!');
 		if(typeof media.url === 'undefined') {
-			console.log('Original URL not found!');
-			
+			//console.log('Original URL not found!');
+
 			i = pageContent.indexOf('{\\\"itag\\\":'+videoSource.join('')
 									.match(/itag=(.+?)aitags/)[1]);
 			j = pageContent.substring(i).indexOf('},{')+1;
@@ -118,15 +118,25 @@ async function getMedia(mainUrl) {
 			i  = url.findIndex(elem => elem.startsWith('s='));
 			var sFinal = decodeURIComponent(url[i].match(/s=(.+)/)[1]);
 			
-			sFinal = sFinal.split('');
 			if(sFinal.includes('ww2Ix')) {
-				sFinal = sFinal.reverse();
+				sFinal = sFinal.split('').reverse();
+			}else {
+				sFinal = sFinal.split('');
 			}
 			
 			console.log('sFinal0 -> '+sFinal.join(''));
+			var c = [0, sFinal[0]];
 			changes.indexes.forEach(elem => {
 				console.log('IdxElem -> '+elem.toString());
-				sFinal[elem[0]] = sFinal[elem[1]];
+				var temp = sFinal[elem[0]];
+				if(c[0] == elem[1]) {
+					sFinal[elem[0]] = c[1];
+					
+				}else {
+					sFinal[elem[0]] = sFinal[elem[1]];
+				}
+				c[0] = elem[0];
+				c[1] = temp;
 			});
 			console.log('sFinal1 -> '+sFinal.join(''));
 			sFinal.splice(0, changes.left, '');
