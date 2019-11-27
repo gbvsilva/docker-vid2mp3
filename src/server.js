@@ -22,17 +22,26 @@ app.get('/', (req, res) => {
 });
 
 function diffS(s, sig) {
-	var i = s.indexOf('xI')-3;
+	var i = s.indexOf('wwR')-6;
 	var changes = {};
 	changes.left = i;
-	changes.indexes = [];
-	s = s.split('');
-	for(var j=i; j < sig.length; ++j) {
+	changes.indexes = [[i+23, i], [i+32, i+23], 
+					  [i+79, i+104], [i+103, i+102]];
+	/*s = s.split('');
+	var j = i;
+	for(; j < sig.length/2; ++j) {
 		if(s[j] != sig[j-i]) {
 			changes.indexes.push([j, s.indexOf(sig[j-i])]);
 		}
 	}
-	changes.right = i;
+	var count_to_delete = 0;
+	for(; j<sig.length; ++j) {
+		if(s[j] != sig[j-i]) {
+			changes.indexes.push([j, s.lastIndexOf(sig[j-i])]);
+			count_to_delete++;
+		}
+	}
+	changes.right = count_to_delete;*/
 	return changes;
 }
 
@@ -107,7 +116,7 @@ async function getMedia(mainUrl) {
 			console.log('VideoSource -> ' +videoSource);
 			i = videoSource.findIndex(elem => elem.startsWith('sig='))
 			var sig = decodeURIComponent(videoSource[i].match(/sig=(.+)/)[1]);
-			if(s.includes('ww2Ix')) {
+			if(s.includes('Rww')) {
 				s = s.split('').reverse().join('');				
 			}
 			console.log('\ns -> '+s);
@@ -118,7 +127,7 @@ async function getMedia(mainUrl) {
 			i  = url.findIndex(elem => elem.startsWith('s='));
 			var sFinal = decodeURIComponent(url[i].match(/s=(.+)/)[1]);
 			
-			if(sFinal.includes('ww2Ix')) {
+			if(sFinal.includes('Rww')) {
 				sFinal = sFinal.split('').reverse();
 			}else {
 				sFinal = sFinal.split('');
@@ -141,8 +150,8 @@ async function getMedia(mainUrl) {
 			console.log('sFinal1 -> '+sFinal.join(''));
 			sFinal.splice(0, changes.left, '');
 			
-			/*for(var j=0; j < sFinal.length-changes.right-1; ++j)
-				sFinal.pop();*/
+			sFinal.pop();
+			sFinal.pop();
 			console.log('sFinal2 -> '+sFinal.join(''));
 			sFinal = sFinal.join('');
 
