@@ -47,18 +47,6 @@ function diffS(s, sig) {
 	return changes;
 }
 
-function sWellFormed(s) {
-	if(!s.includes('=')) return true;
-	if(s.includes('=') && s.indexOf('=') >= 100) return true;
-	return false;
-}
-
-function genMediaURL(pageContent, videoSource, media) {
-	
-	return sFinal;
-
-}
-
 async function getMedia(mainUrl) {
 	/* Using Puppeteer */
 	console.log('Puppeteer gonna launch!');
@@ -191,7 +179,6 @@ async function getMedia(mainUrl) {
 			}
 		}
 	}while(typeof media.url === 'undefined');
-
 	
 }
 
@@ -202,7 +189,7 @@ app.post('/', (req, res) => {
 	getMedia(url).then(media => {
 		logText += '\n';
 		var dt = new Date();
-		const logFileName = dt.getDate()+'-'+dt.getMonth()+1+'-'+dt.getFullYear()+'.log';
+		const logFileName = dt.getDate()+'-'+parseInt(dt.getMonth()+1)+'-'+dt.getFullYear()+'.log';
 		fs.appendFile(logPath+logFileName, logText, (err) => {
 			if(err) {
 				throw err;
