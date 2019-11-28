@@ -25,9 +25,10 @@ function diffS(s, sig) {
 	var i = s.indexOf('wwR')-6;
 	var changes = {};
 	changes.left = i;
-	changes.indexes = [[i+23, i], [i+32, i+23], 
-					  [i+79, i+104], [i+103, i+102]];
-	/*s = s.split('');
+	/*changes.indexes = [[i+23, i], [i+32, i+23], 
+					  [i+79, i+104], [i+103, i+102]];*/
+    changes.indexes = [];
+	s = s.split('');
 	var j = i;
 	for(; j < sig.length/2; ++j) {
 		if(s[j] != sig[j-i]) {
@@ -41,7 +42,7 @@ function diffS(s, sig) {
 			count_to_delete++;
 		}
 	}
-	changes.right = count_to_delete;*/
+	changes.right = count_to_delete;
 	return changes;
 }
 
@@ -150,8 +151,12 @@ async function getMedia(mainUrl) {
 			console.log('sFinal1 -> '+sFinal.join(''));
 			sFinal.splice(0, changes.left, '');
 			
-			sFinal.pop();
-			sFinal.pop();
+			for(var j=0; j < sFinal.length-sig.length+1; ++j)
+				sFinal.pop();
+			if(sFinal[0] != 'A') {
+				console.log('OK!');
+				sFinal.splice(0, 2, 'A');
+			}
 			console.log('sFinal2 -> '+sFinal.join(''));
 			sFinal = sFinal.join('');
 
