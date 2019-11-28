@@ -44,6 +44,72 @@ function diffS(s, sig) {
 	return changes;
 }
 
+function sWellFormed(s) {
+	if(!s.includes('=')) return true;
+	if(s.includes('=') && s.indexOf('=') >= 100) return true;
+	return false;
+}
+
+function genMediaURL(pageContent, videoSource, media) {
+	var i = pageContent.indexOf('{\\\"itag\\\":'+videoSource.join('')
+							.match(/itag=(.+?)aitags/)[1]);
+	var j = pageContent.substring(i).indexOf('},{')+1;
+	var cipher = pageContent.substring(i, i+j).replace(/\\/g, '');
+	cipher = cipher.match(/cipher\":\"(.+?)\"/)[1].replace(/u0026/g, '&');
+	cipher = cipher.split('&');
+	//console.log('cipher -> '+cipher);
+
+	/* Starting Crypto Analysis */
+	i = cipher.findIndex(elem => elem.startsWith('s='));
+	var s = decodeURIComponent(cipher[i].match(/s=(.+)/)[1]);
+	console.log('VideoSource -> ' +videoSource);
+	i = videoSource.findIndex(elem => elem.startsWith('sig='))
+	var sig = decodeURIComponent(videoSource[i].match(/sig=(.+)/)[1]);
+	if(s.includes('Rww')) {
+		s = s.split('').reverse().join('');				
+	}
+	console.log('\ns -> '+s);
+	console.log('sig -> '+sig+'\n');
+	const changes = diffS(s, sig);
+
+	var url = media.cipher.replace(/u0026/g, '&').split('&');
+	i  = url.findIndex(elem => elem.startsWith('s='));
+	var sFinal = decodeURIComponent(url[i].match(/s=(.+)/)[1]);
+
+	if(sFinal.includes('Rww')) {
+		sFinal = sFinal.split('').reverse();
+	}else {
+		sFinal = sFinal.split('');
+	}
+
+	console.log('sFinal0 -> '+sFinal.join(''));
+	var c = [0, sFinal[0]];
+	changes.indexes.forEach(elem => {
+		console.log('IdxElem -> '+elem.toString());
+		var temp = sFinal[elem[0]];
+		if(c[0] == elem[1]) {
+			sFinal[elem[0]] = c[1];
+			
+		}else {
+			sFinal[elem[0]] = sFinal[elem[1]];
+		}
+		c[0] = elem[0];
+		c[1] = temp;
+	});
+	console.log('sFinal1 -> '+sFinal.join(''));
+	sFinal.splice(0, changes.left, '');
+
+	for(var j=0; j < sFinal.length-sig.length+1; ++j)
+		sFinal.pop();
+	if(sFinal[0] != 'A') {
+		sFinal.splice(0, 2, 'A');
+	}
+	console.log('sFinal2 -> '+sFinal.join(''));
+	sFinal = sFinal.join('');
+	return sFinal;
+
+}
+
 async function getMedia(mainUrl) {
 	/* Using Puppeteer */
 	console.log('Puppeteer gonna launch!');
@@ -101,68 +167,19 @@ async function getMedia(mainUrl) {
 		if(typeof media.url === 'undefined') {
 			//console.log('Original URL not found!');
 
-			i = pageContent.indexOf('{\\\"itag\\\":'+videoSource.join('')
-									.match(/itag=(.+?)aitags/)[1]);
-			j = pageContent.substring(i).indexOf('},{')+1;
-			var cipher = pageContent.substring(i, i+j).replace(/\\/g, '');
-			cipher = cipher.match(/cipher\":\"(.+?)\"/)[1].replace(/u0026/g, '&');
-			cipher = cipher.split('&');
-			//console.log('cipher -> '+cipher);
-			
-			/* Starting Crypto Analysis */
-			i = cipher.findIndex(elem => elem.startsWith('s='));
-			var s = decodeURIComponent(cipher[i].match(/s=(.+)/)[1]);
-			console.log('VideoSource -> ' +videoSource);
-			i = videoSource.findIndex(elem => elem.startsWith('sig='))
-			var sig = decodeURIComponent(videoSource[i].match(/sig=(.+)/)[1]);
-			if(s.includes('Rww')) {
-				s = s.split('').reverse().join('');				
+			var sFinal = '=';
+			while(!sWellFormed(sFinal)) {
+				sFinal = genMediaURL(pageContent, videoSource, media);
 			}
-			console.log('\ns -> '+s);
-			console.log('sig -> '+sig+'\n');
-			const changes = diffS(s, sig);
 
 			var url = media.cipher.replace(/u0026/g, '&').split('&');
-			i  = url.findIndex(elem => elem.startsWith('s='));
-			var sFinal = decodeURIComponent(url[i].match(/s=(.+)/)[1]);
-			
-			if(sFinal.includes('Rww')) {
-				sFinal = sFinal.split('').reverse();
-			}else {
-				sFinal = sFinal.split('');
-			}
-			
-			console.log('sFinal0 -> '+sFinal.join(''));
-			var c = [0, sFinal[0]];
-			changes.indexes.forEach(elem => {
-				console.log('IdxElem -> '+elem.toString());
-				var temp = sFinal[elem[0]];
-				if(c[0] == elem[1]) {
-					sFinal[elem[0]] = c[1];
-					
-				}else {
-					sFinal[elem[0]] = sFinal[elem[1]];
-				}
-				c[0] = elem[0];
-				c[1] = temp;
-			});
-			console.log('sFinal1 -> '+sFinal.join(''));
-			sFinal.splice(0, changes.left, '');
-			
-			for(var j=0; j < sFinal.length-sig.length+1; ++j)
-				sFinal.pop();
-			if(sFinal[0] != 'A') {
-				sFinal.splice(0, 2, 'A');
-			}
-			console.log('sFinal2 -> '+sFinal.join(''));
-			sFinal = sFinal.join('');
-
 			i  = url.findIndex(elem => elem.startsWith('url='));
 			url = decodeURIComponent(url[i].match(/url=(.+)/)[1]);
 			url += '&sig='+sFinal;
 			console.log('FINAL URL -> '+url);
 			media.url = url;
 			return media;
+
 		}else {
 			return media;
 		}
