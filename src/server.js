@@ -76,7 +76,10 @@ async function runPuppeteer(mainUrl) {
   	
   	var webContents = {};
   	webContents.browser = browser;
-  	webContents.media = {};
+  	var i = pageContent.indexOf('{\\\"itag\\\":18');
+	var	j = pageContent.substring(i).indexOf('}')+1;
+	webContents.media = JSON.parse(pageContent.substring(i, i+j).replace(/\\/g, '')
+							.replace(/; codecs.*\".*\",/, '\",'));
   	webContents.media.title = videoTitle;
   	webContents.page = page;
   	return webContents;
