@@ -52,46 +52,41 @@
                         if (xhr.status === 200) {
                             
                             //console.log(xhr.responseText);
-                            var videoTitle = JSON.parse(xhr.responseText).videoTitle;
-                            console.log('Video Title -> '+videoTitle);
+                            const media = JSON.parse(xhr.responseText);
+                            console.log('Video Title -> '+media.title);
 
                             toogle('loading');
                             $('.btn_get_yt_video_link').prop('disabled', false);
                             $('.btn_get_yt_video_link').attr('disabled', false);
+
+                            var d = ''
+                            +'<br>'
+
+                            +'<video src="'+media.url+'" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
+                            +'</video>';
+
+                            //$('.btns').html(c);
+                                        
+                            $('.youtube_video').html(d);
                             
-                            if(videoTitle != 'This video is not supported!') {
+                            
+                            /*$(document).on('click', '.btn-start', function(event) {
+                                $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
+                                    if(e == "File does not exist. Error!") {
+                                        alert("Error!");
+                                    }else {
+                                        c = ''
+                                        +'<span class="btn btn-primary btn-start"> Start</span>'
+                                        +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
+                                        $('.btns').html(c);
+                                    }
+                                });
+                            });*/
+                            
 
-                                var d = ''
-                                +'<br>'
-
-                                +'<video src="videos/'+encodeURIComponent(videoTitle)+'.mp4" controls autoplay oncontextmenu="return false;" height="350" width="100%">'
-                                +'</video>';
-
-                                //$('.btns').html(c);
-                                            
-                                $('.youtube_video').html(d);
+                            /*$(document).on('click', '.btn-download', function(event) {
                                 
-                                
-                                /*$(document).on('click', '.btn-start', function(event) {
-                                    $.get('proxy.php?source='+encodeURIComponent(video_link)+'&video_title='+encodeURIComponent(video_title), function(e) {
-                                        if(e == "File does not exist. Error!") {
-                                            alert("Error!");
-                                        }else {
-                                            c = ''
-                                            +'<span class="btn btn-primary btn-start"> Start</span>'
-                                            +'<button type="button" class="btn btn-danger btn-download"> Download</button>';
-                                            $('.btns').html(c);
-                                        }
-                                    });
-                                });*/
-                                
-
-                                /*$(document).on('click', '.btn-download', function(event) {
-                                    
-                                });*/
-                            }else {
-                                alert(videoTitle);
-                            }
+                            });*/
                         } else {
                             console.error('XHR status -> '+xhr.status);
                             alert('Error on Request!');
