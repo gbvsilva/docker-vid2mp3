@@ -220,10 +220,10 @@ async function getMedia(mainUrl) {
 app.post('/', (req, res) => {
 	const url = req.body.url;
 	console.log('Video link -> ' + url);
+	var dt = new Date();
 	
-	getMedia(url).then(media => {
-		logText += '\n';
-		var dt = new Date();
+	getMedia(url).then(media => {	
+		logText = logText+'Video requested at '+dt.getHours()+':'+dt.getMinutes()+':'+dt.getSeconds()+'\n\n';
 		const logFileName = dt.getDate()+'-'+parseInt(dt.getMonth()+1)+'-'+dt.getFullYear()+'.log';
 		fs.appendFile(logPath+logFileName, logText, (err) => {
 			if(err) {
