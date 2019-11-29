@@ -1,11 +1,11 @@
-FROM node:10-alpine
+FROM alpine:edge
 
 # Create app directory
 ARG CWD="/opt/vid2mp3"
 WORKDIR $CWD
 
 # === Installing Wget and FFmpeg ===
-RUN apk add --no-cache wget ffmpeg
+RUN apk add --no-cache nodejs npm chromium
 
 # === Preparing node environment ===
 
