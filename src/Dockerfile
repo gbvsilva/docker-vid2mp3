@@ -2,8 +2,6 @@ FROM alpine:edge
 
 # Create app directory
 ARG CWD="/opt/vid2mp3"
-RUN chmod +x vid2mp3.sh
-
 WORKDIR $CWD
 
 # === Installing Wget and FFmpeg ===
@@ -13,10 +11,11 @@ RUN apk add --no-cache nodejs npm chromium
 
 COPY package*.json ./
 
-RUN npm install
-
 # Bundle app source
 COPY . .
+
+RUN npm install
+RUN chmod +x vid2mp3.sh
 
 EXPOSE 8000
 
