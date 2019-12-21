@@ -12,7 +12,7 @@ RUN apk add --no-cache nodejs npm chromium
 COPY package*.json ./
 
 RUN npm install
-RUN chmod +x ./vid2mp3.sh
+RUN chmod +x /vid2mp3.sh
 
 # Bundle app source
 COPY . .
