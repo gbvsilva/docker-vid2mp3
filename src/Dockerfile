@@ -4,7 +4,7 @@ FROM alpine:edge
 ARG CWD="/opt/vid2mp3"
 WORKDIR $CWD
 
-# === Installing Wget and FFmpeg ===
+# === Installing node, npm and chromium ===
 RUN apk add --no-cache nodejs npm chromium
 
 # === Preparing node environment ===
