@@ -15,7 +15,7 @@ RUN npm install
 RUN chmod +x vid2mp3.sh
 
 # Bundle app source
-COPY . .
+COPY . $CWD/
 
 EXPOSE 8000
 
