@@ -16,7 +16,8 @@ COPY . .
 
 RUN npm install
 RUN chmod +x vid2mp3.sh
+RUN mv vid2mp3.sh /
 
 EXPOSE 8000
 
-ENTRYPOINT ["/opt/vid2mp3/vid2mp3.sh"]
+ENTRYPOINT ["/vid2mp3.sh"]
